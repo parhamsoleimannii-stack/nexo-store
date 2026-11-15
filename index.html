@@ -1,0 +1,166 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXO | فروشگاه دیجیتال</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#090a0c;color:#f4f5f7;font-family:Tahoma,Arial,sans-serif}
+header{padding:18px 5%;border-bottom:1px solid #292d33;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:#0b0c0fee}
+.logo{font-size:28px;font-weight:bold;letter-spacing:3px}
+.logo small{display:block;font-size:9px;color:#aaa;letter-spacing:2px}
+button{border:0;border-radius:9px;padding:11px 15px;background:#c5cad1;color:#101216;font-weight:bold;cursor:pointer}
+.secondary{background:#252a31;color:white;border:1px solid #444}
+main{max-width:1000px;margin:auto;padding:18px}
+.hero{padding:35px 22px;border:1px solid #444;border-radius:18px;background:linear-gradient(130deg,#303640,#111318);margin:20px 0}
+.hero h1{font-size:32px;margin:12px 0}
+.hero p{color:#c0c5cc;line-height:2}
+h2{font-size:19px}
+input,select,textarea{width:100%;padding:12px;border-radius:9px;border:1px solid #3a4049;background:#111419;color:white;font:inherit;margin:6px 0}
+.tools{display:flex;gap:8px;margin:15px 0}
+.tools input{flex:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
+.card{background:#15181d;border:1px solid #30353d;border-radius:14px;overflow:hidden}
+.photo{height:140px;background:#252a31;display:grid;place-items:center;color:#aaa;font-size:35px}
+.photo img{width:100%;height:100%;object-fit:cover}
+.info{padding:12px}
+.name{font-weight:bold;line-height:1.8}
+.muted{font-size:12px;color:#999}
+.price{font-weight:bold;margin:10px 0;color:#d9dde2}
+.empty{padding:30px;text-align:center;color:#999;border:1px dashed #444;border-radius:12px;grid-column:1/-1}
+dialog{background:#14171c;color:white;border:1px solid #555;border-radius:15px;width:94%;max-width:520px;max-height:90vh;overflow:auto}
+dialog::backdrop{background:#000b}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{margin:4px 0}
+footer{text-align:center;padding:25px;color:#888;border-top:1px solid #292d33;margin-top:30px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+<div class="logo">NEXO<small>CONNECT TO MORE</small></div>
+<button onclick="openAdmin()">مدیریت محصولات</button>
+</header>
+
+<main>
+<div class="hero">
+<div class="muted">به دنیای NEXO خوش آمدید</div>
+<h1>تکنولوژی، ساده‌تر از همیشه.</h1>
+<p>محصولات دیجیتال و لوازم جانبی موردنیازت رو اینجا پیدا کن.</p>
+<button onclick="document.getElementById('products').scrollIntoView({behavior:'smooth'})">مشاهده محصولات</button>
+</div>
+
+<section>
+<h2>محصولات فروشگاه</h2>
+<div class="tools">
+<input id="search" placeholder="جست‌وجوی محصول..." oninput="render()">
+<select id="sort" onchange="render()" style="max-width:140px">
+<option value="new">جدیدترین</option>
+<option value="low">ارزان‌ترین</option>
+<option value="high">گران‌ترین</option>
+</select>
+</div>
+<div id="products" class="grid"></div>
+</section>
+</main>
+
+<footer>NEXO — CONNECT TO MORE<br>نسخه نمایشی فروشگاه</footer>
+
+<dialog id="admin">
+<h2>مدیریت محصولات</h2>
+<p class="muted">افزودن، ویرایش و حذف محصولات</p>
+<form id="form">
+<input type="hidden" id="editId">
+<label>نام محصول</label>
+<input id="name" required placeholder="مثلاً هدفون بلوتوثی">
+<label>دسته‌بندی</label>
+<select id="category">
+<option>موبایل</option>
+<option>لوازم جانبی</option>
+<option>صوتی</option>
+<option>کامپیوتر</option>
+<option>سایر</option>
+</select>
+<label>برند</label>
+<input id="brand" placeholder="نام برند">
+<label>قیمت به تومان</label>
+<input id="price" type="number" min="0" required>
+<label>موجودی</label>
+<input id="stock" type="number" min="0" value="1">
+<label>توضیحات</label>
+<textarea id="desc" rows="2"></textarea>
+<label>عکس محصول</label>
+<input id="photo" type="file" accept="image/*">
+<div class="row">
+<button type="submit">ذخیره محصول</button>
+<button type="button" class="secondary" onclick="resetForm()">پاک کردن فرم</button>
+<button type="button" class="secondary" onclick="closeAdmin()">بستن</button>
+</div>
+</form>
+<hr>
+<h2>فهرست محصولات</h2>
+<div id="manage"></div>
+</dialog>
+
+<script>
+const KEY="nexo_products";
+let items=JSON.parse(localStorage.getItem(KEY)||"[]");
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem(KEY,JSON.stringify(items));render()}
+function money(n){return Number(n).toLocaleString("fa-IR")+" تومان"}
+function safe(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+
+function render(){
+let q=$("search").value.trim().toLowerCase();
+let list=items.filter(p=>(p.name+" "+p.brand+" "+p.category).toLowerCase().includes(q));
+if($("sort").value==="low")list.sort((a,b)=>a.price-b.price);
+if($("sort").value==="high")list.sort((a,b)=>b.price-a.price);
+$("products").innerHTML=list.length?list.map(p=>`
+<div class="card">
+<div class="photo">${p.image?`<img src="${p.image}">`:"◇"}</div>
+<div class="info">
+<div class="name">${safe(p.name)}</div>
+<div class="muted">${safe(p.brand)} · ${safe(p.category)}</div>
+<div class="price">${money(p.price)}</div>
+<div class="muted">${p.stock>0?"موجود":"ناموجود"}</div>
+</div></div>`).join(""):'<div class="empty">هنوز محصولی اضافه نشده است.</div>';
+$("manage").innerHTML=items.length?items.map(p=>`
+<div class="card info" style="margin:8px 0">
+<b>${safe(p.name)}</b><p class="muted">${money(p.price)} | موجودی: ${p.stock}</p>
+<div class="row">
+<button onclick="editProduct('${p.id}')">ویرایش</button>
+<button class="secondary" onclick="deleteProduct('${p.id}')">حذف</button>
+</div></div>`).join(""):'<p class="muted">محصولی ثبت نشده.</p>';
+}
+function openAdmin(){$("admin").showModal();render()}
+function closeAdmin(){$("admin").close()}
+function resetForm(){$("form").reset();$("editId").value="";$("stock").value=1}
+function editProduct(id){
+let p=items.find(x=>x.id===id);if(!p)return;
+$("editId").value=p.id;$("name").value=p.name;$("category").value=p.category;
+$("brand").value=p.brand;$("price").value=p.price;$("stock").value=p.stock;
+$("desc").value=p.desc||"";window.scrollTo(0,0);
+}
+function deleteProduct(id){
+if(confirm("این محصول حذف شود؟")){items=items.filter(p=>p.id!==id);save()}
+}
+$("form").onsubmit=async e=>{
+e.preventDefault();
+let old=items.find(p=>p.id===$("editId").value);
+let image=old?.image||"";
+let file=$("photo").files[0];
+if(file)image=await new Promise(resolve=>{
+let reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.readAsDataURL(file)
+});
+let p={id:old?.id||String(Date.now()),name:$("name").value.trim(),
+category:$("category").value,brand:$("brand").value.trim(),
+price:Number($("price").value),stock:Number($("stock").value),
+desc:$("desc").value,image};
+if(old)items=items.map(x=>x.id===old.id?p:x);else items.unshift(p);
+save();resetForm();alert("محصول ذخیره شد.");
+};
+render();
+</script>
+</body>
+</html>
